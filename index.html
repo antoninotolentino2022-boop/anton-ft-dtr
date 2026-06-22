@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <!-- SheetJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; }
@@ -71,6 +73,26 @@
         .admin-section button { background: #1d5b7c; border: none; color: white; padding: 8px 24px; border-radius: 30px; font-weight: 500; cursor: pointer; }
         .admin-section button:hover { background: #0b3b5c; }
         
+        /* Super Admin Dashboard */
+        .super-admin-panel { background: #e8f0f8; border-radius: 20px; padding: 20px 24px; margin: 20px 0; border: 2px solid #0b3b5c; display: none; }
+        .super-admin-panel h4 { color: #0b3b5c; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .user-list { display: grid; gap: 10px; max-height: 400px; overflow-y: auto; }
+        .user-item { background: white; padding: 12px 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #dce8f2; }
+        .user-item .user-info { display: flex; flex-direction: column; }
+        .user-item .user-name { font-weight: 600; color: #0b3b5c; }
+        .user-item .user-email { font-size: 12px; color: #5a7a94; }
+        .user-item .user-password { font-size: 11px; color: #1f6390; font-family: monospace; }
+        .user-item .role-select { padding: 6px 12px; border-radius: 20px; border: 1px solid #cbdae7; background: white; }
+        .user-item .role-select:focus { outline: 2px solid #0b3b5c; }
+        
+        .add-user-form { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+        .add-user-form input, .add-user-form select { padding: 10px 16px; border-radius: 30px; border: 1px solid #cbdae7; flex: 1; min-width: 150px; }
+        .add-user-form button { background: #0b3b5c; color: white; border: none; padding: 10px 24px; border-radius: 30px; cursor: pointer; font-weight: 600; }
+        .add-user-form button:hover { background: #164b6e; }
+        
+        .school-list { margin: 12px 0; }
+        .school-item { background: white; padding: 12px 16px; border-radius: 12px; border: 1px solid #dce8f2; margin-bottom: 8px; }
+        
         .dtr-wrapper { overflow-x: auto; margin: 24px 0 16px; border-radius: 18px; border: 1px solid #dde6ef; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; background: white; min-width: 700px; }
         th { background: #e4eef7; color: #003153; font-weight: 600; padding: 12px 12px; text-align: center; border-bottom: 2px solid #c0d3e3; }
@@ -87,20 +109,36 @@
         
         .deped-badge { background: #003153; color: white; padding: 2px 12px; border-radius: 12px; font-size: 11px; margin-left: 10px; }
         
+        .login-form-container { background: white; padding: 30px; border-radius: 20px; max-width: 400px; margin: 0 auto; border: 1px solid #dce8f2; }
+        .login-form-container h3 { text-align: center; margin-bottom: 20px; color: #0b3b5c; }
+        .login-form-container input { width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #cbdae7; margin-bottom: 12px; font-size: 14px; }
+        .login-form-container button { width: 100%; padding: 12px; border-radius: 30px; border: none; background: #0b3b5c; color: white; font-weight: 600; cursor: pointer; }
+        .login-form-container button:hover { background: #164b6e; }
+        .login-form-container .demo-credentials { background: #f0f7ff; padding: 12px; border-radius: 12px; margin: 12px 0; font-size: 13px; }
+        .login-form-container .demo-credentials code { display: block; padding: 4px 8px; background: #e8edf4; border-radius: 4px; margin: 4px 0; }
+        .password-generator { display: flex; gap: 8px; margin-top: 4px; }
+        .password-generator button { padding: 4px 12px; background: #e8edf4; color: #0b3b5c; border: 1px solid #cbdae7; border-radius: 20px; cursor: pointer; font-size: 12px; width: auto; }
+        .password-generator input { flex: 1; margin-bottom: 0; }
+        
         @media (max-width: 700px) {
             .brand-header { flex-direction: column; align-items: start; gap: 12px; }
             .login-panel { flex-direction: column; align-items: stretch; gap: 16px; }
             .brand-name { font-size: 20px; }
             .brand-name small { font-size: 12px; display: block; margin-left: 0; }
+            .user-item { flex-direction: column; gap: 8px; align-items: stretch; }
+            .add-user-form { flex-direction: column; }
+            .add-user-form input, .add-user-form select { min-width: 100%; }
         }
     </style>
 </head>
 <body>
 <div class="app-container" id="app">
+    <!-- Offline Banner -->
     <div class="offline-banner" id="offlineBanner">
         <i class="fas fa-wifi"></i> You are offline. Data will sync when connection is restored.
     </div>
 
+    <!-- Brand Header -->
     <div class="brand-header">
         <div class="brand-left">
             <div class="brand-logo">A</div>
@@ -109,565 +147,895 @@
                 <small>Automated Notification and Timekeeping Online Network Faculty Tracker</small>
             </div>
             <span class="brand-tagline">DepEd DTR</span>
-            <span class="deped-badge">v2.0</span>
+            <span class="deped-badge">v3.0</span>
         </div>
         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <button class="install-btn" id="installBtn"><i class="fas fa-download"></i> Install App</button>
+            <button id="logoutBtn" style="background:#b13e3e;color:white;border:none;padding:6px 16px;border-radius:30px;cursor:pointer;display:none;font-weight:600;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
             <div class="user-badge">
                 <i class="fas fa-user-circle"></i>
-                <span id="currentUserDisplay">Teacher</span>
-                <span class="role-tag" id="roleTag">user</span>
+                <span id="currentUserDisplay">Guest</span>
+                <span class="role-tag" id="roleTag">guest</span>
             </div>
         </div>
     </div>
 
-    <div class="login-panel">
-        <div class="login-info">
-            <div class="selfie-btn" id="selfieLoginBtn">
-                <i class="fas fa-camera"></i> Login via Selfie
+    <!-- Login Form -->
+    <div class="login-form-container" id="loginForm">
+        <h3>👋 Welcome to ANTON FT</h3>
+        <p style="text-align:center;color:#5a7a94;margin-bottom:16px;font-size:14px;">Login to track your attendance</p>
+        
+        <div class="demo-credentials">
+            <strong>Super Admin Login:</strong>
+            <code>Email: antoninotolentino2022@gmail.com</code>
+            <code>Password: SuperAdmin2026</code>
+        </div>
+        
+        <input type="email" id="loginEmail" placeholder="Email address" value="antoninotolentino2022@gmail.com" />
+        <input type="password" id="loginPassword" placeholder="Password" value="SuperAdmin2026" />
+        <button id="loginBtn">Sign In</button>
+    </div>
+
+    <!-- Main App (hidden until logged in) -->
+    <div id="mainApp" style="display:none;">
+        <!-- Login Panel -->
+        <div class="login-panel">
+            <div class="login-info">
+                <div class="selfie-btn" id="selfieLoginBtn" style="display:none;">
+                    <i class="fas fa-camera"></i> Login via Selfie
+                </div>
+                <div class="geo-status" id="geoStatus">
+                    <i class="fas fa-map-pin geo-ok"></i>
+                    <span id="geoText">📍 School Zone (within 100m)</span>
+                </div>
             </div>
-            <div class="geo-status" id="geoStatus">
-                <i class="fas fa-map-pin geo-ok"></i>
-                <span id="geoText">📍 School Zone (within 100m)</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-clock" style="color:#0b3b5c;"></i>
+                <span id="clockDisplay" style="font-weight:500;">00:00:00</span>
             </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-clock" style="color:#0b3b5c;"></i>
-            <span id="clockDisplay" style="font-weight:500;">00:00:00</span>
+
+        <!-- Event Input -->
+        <div class="event-input-area" id="eventArea" style="display: none;">
+            <i class="fas fa-pen" style="color:#b13e3e;"></i>
+            <input type="text" id="eventInput" placeholder="e.g. Training, Class suspension, Seminar..." />
+            <button id="logEventBtn">Log Event</button>
+            <span style="font-size:13px; color:#5a5f6b;">(outside geofence – record activity)</span>
         </div>
-    </div>
 
-    <div class="event-input-area" id="eventArea" style="display: none;">
-        <i class="fas fa-pen" style="color:#b13e3e;"></i>
-        <input type="text" id="eventInput" placeholder="e.g. Training, Class suspension, Seminar..." />
-        <button id="logEventBtn">Log Event</button>
-        <span style="font-size:13px; color:#5a5f6b;">(outside geofence – record activity)</span>
-    </div>
+        <!-- Sync Status -->
+        <div class="sync-status" id="syncStatus">
+            <i class="fas fa-check-circle sync-ok"></i>
+            <span>All data synced</span>
+        </div>
 
-    <div class="sync-status" id="syncStatus">
-        <i class="fas fa-check-circle sync-ok"></i>
-        <span>All data synced</span>
-    </div>
+        <!-- School Admin Section -->
+        <div class="admin-section" id="adminSection">
+            <span class="admin-label"><i class="fas fa-user-shield"></i> Admin Control</span>
+            <input type="text" id="schoolNameInput" placeholder="School Name" />
+            <input type="text" id="schoolAddressInput" placeholder="Address" />
+            <input type="text" id="schoolLocationInput" placeholder="Lat, Lng" value="14.5995, 120.9842" />
+            <button id="updateSchoolBtn"><i class="fas fa-save"></i> Update School</button>
+        </div>
 
-    <div class="admin-section" id="adminSection">
-        <span class="admin-label"><i class="fas fa-user-shield"></i> Admin Control</span>
-        <input type="text" id="schoolNameInput" placeholder="School Name" value="San Jose Central School" />
-        <input type="text" id="schoolAddressInput" placeholder="Address" value="Brgy. San Jose, City" />
-        <input type="text" id="schoolLocationInput" placeholder="Lat, Lng" value="14.5995, 120.9842" />
-        <button id="updateSchoolBtn"><i class="fas fa-save"></i> Update School</button>
-        <span style="font-size:13px; color:#1d5b7c;"><i class="fas fa-info-circle"></i> Superadmin can assign admins</span>
-    </div>
+        <!-- Super Admin Panel -->
+        <div class="super-admin-panel" id="superAdminPanel">
+            <h4><i class="fas fa-crown"></i> Super Admin Dashboard</h4>
+            
+            <!-- Schools Management -->
+            <div style="margin-bottom: 16px;">
+                <h5 style="color:#1a3d57;margin-bottom:8px;"><i class="fas fa-school"></i> Manage Schools</h5>
+                <div class="add-user-form" style="margin-top:8px;">
+                    <input type="text" id="newSchoolName" placeholder="School Name" />
+                    <input type="text" id="newSchoolAddress" placeholder="School Address" />
+                    <button id="addSchoolBtn"><i class="fas fa-plus"></i> Add School</button>
+                </div>
+                <div class="school-list" id="schoolList"></div>
+            </div>
+            
+            <!-- Users Management -->
+            <div>
+                <h5 style="color:#1a3d57;margin-bottom:8px;"><i class="fas fa-users"></i> Manage Users</h5>
+                <div class="add-user-form">
+                    <input type="text" id="newUserEmail" placeholder="Email" />
+                    <input type="text" id="newUserName" placeholder="Full Name" />
+                    <select id="newUserSchool">
+                        <option value="">Select School (optional)</option>
+                    </select>
+                    <select id="newUserRole">
+                        <option value="teacher">Teacher</option>
+                        <option value="school_admin">School Admin</option>
+                    </select>
+                    <button id="addUserBtn"><i class="fas fa-plus"></i> Add User</button>
+                </div>
+                <div class="user-list" id="userList">
+                    <!-- Users will be loaded here -->
+                </div>
+            </div>
+        </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 12px 0 6px;">
-        <h3 style="color: #0b3b5c;"><i class="fas fa-calendar-alt"></i> Monthly DTR – <span id="monthLabel">June 2026</span></h3>
-        <button class="export-btn" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Export Excel (DepEd DTR)</button>
-    </div>
+        <!-- DTR Table -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 12px 0 6px;">
+            <h3 style="color: #0b3b5c;"><i class="fas fa-calendar-alt"></i> Monthly DTR – <span id="monthLabel">June 2026</span></h3>
+            <button class="export-btn" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Export Excel (DepEd DTR)</button>
+        </div>
 
-    <div class="dtr-wrapper">
-        <table id="dtrTable">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Day</th>
-                    <th>Time In</th>
-                    <th>Time Out</th>
-                    <th>Status / Event</th>
-                </tr>
-            </thead>
-            <tbody id="dtrBody">
-            </tbody>
-        </table>
-    </div>
+        <div class="dtr-wrapper">
+            <table id="dtrTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                        <th>Status / Event</th>
+                    </tr>
+                </thead>
+                <tbody id="dtrBody">
+                </tbody>
+            </table>
+        </div>
 
-    <div class="footer-note">
-        <i class="fas fa-map-marked-alt"></i> Geotagged · ANTON FT v2.0 · DepEd Standard DTR
-        <br>
-        <span style="font-size: 11px; color: #888;">Data Privacy Notice: All DTR data is stored locally on your device. No data is sent to external servers. ANTON FT complies with the Data Privacy Act of 2012 (RA 10173).</span>
-        <br>
-        <span style="font-size: 11px; color: #888;">For support: antonft.support@deped.gov.ph | FB: @ANTONFT</span>
+        <div class="footer-note">
+            <i class="fas fa-map-marked-alt"></i> Geotagged · ANTON FT v3.0 · DepEd Standard DTR
+            <br>
+            <span style="font-size: 11px; color: #888;">Data Privacy Notice: Your data is securely stored in the cloud. ANTON FT complies with the Data Privacy Act of 2012 (RA 10173).</span>
+            <br>
+            <span style="font-size: 11px; color: #888;">For support: antonft.support@deped.gov.ph | FB: @ANTONFT</span>
+        </div>
     </div>
 </div>
 
 <script>
-// Full app with IndexedDB, PWA, Offline support
-(function() {
-    "use strict";
+// ═══════════════════════════════════════════
+// ANTON FT v3.0 with Supabase Backend
+// ═══════════════════════════════════════════
 
-    let currentUser = "Maria Santos";
-    let userRole = "teacher";
-    let isLoggedIn = false;
-    let schoolData = {
-        name: "San Jose Central School",
-        address: "Brgy. San Jose, City",
-        location: { lat: 14.5995, lng: 120.9842 },
-        radius: 100
-    };
-    let dtrRecords = [];
-    let isWithinGeofence = true;
-    let isOnline = navigator.onLine;
-    let db = null;
+// ─── CONFIGURATION ───────────────────────
+// !!! REPLACE WITH YOUR SUPABASE URL AND ANON KEY !!!
+const SUPABASE_URL = 'https://yknmmnrhexnhoferudgh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlrbm1tbnJoZXhuaG9mZXJ1ZGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwODI0NzYsImV4cCI6MjA5NzY1ODQ3Nn0.X8p_3jggbJl-R33is8pby6rikwVqq8WTme84_GxVjck';
 
-    const $ = id => document.getElementById(id);
-    const dtrBody = $('dtrBody');
-    const monthLabel = $('monthLabel');
-    const currentUserDisplay = $('currentUserDisplay');
-    const roleTag = $('roleTag');
-    const geoText = $('geoText');
-    const geoStatus = $('geoStatus');
-    const eventArea = $('eventArea');
-    const eventInput = $('eventInput');
-    const logEventBtn = $('logEventBtn');
-    const clockDisplay = $('clockDisplay');
-    const adminSection = $('adminSection');
-    const schoolNameInput = $('schoolNameInput');
-    const schoolAddressInput = $('schoolAddressInput');
-    const schoolLocationInput = $('schoolLocationInput');
-    const updateSchoolBtn = $('updateSchoolBtn');
-    const exportBtn = $('exportExcelBtn');
-    const selfieBtn = $('selfieLoginBtn');
-    const offlineBanner = $('offlineBanner');
-    const syncStatus = $('syncStatus');
-    const installBtn = $('installBtn');
+// ─── INITIALIZATION ──────────────────────
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // IndexedDB functions
-    function openDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('ANTONFT_DTR', 2);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                db = request.result;
-                resolve(db);
-            };
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains('dtrRecords')) {
-                    db.createObjectStore('dtrRecords', { keyPath: 'date' });
-                }
-                if (!db.objectStoreNames.contains('schoolData')) {
-                    db.createObjectStore('schoolData', { keyPath: 'id' });
-                }
-                if (!db.objectStoreNames.contains('syncQueue')) {
-                    db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
-                }
-                if (!db.objectStoreNames.contains('users')) {
-                    db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
-                }
-            };
+let currentUser = null;
+let currentSchool = null;
+let dtrRecords = [];
+let isWithinGeofence = true;
+let isOnline = navigator.onLine;
+let allSchools = [];
+let allUsers = [];
+
+// DOM References
+const $ = id => document.getElementById(id);
+const dtrBody = $('dtrBody');
+const monthLabel = $('monthLabel');
+const currentUserDisplay = $('currentUserDisplay');
+const roleTag = $('roleTag');
+const geoText = $('geoText');
+const geoStatus = $('geoStatus');
+const eventArea = $('eventArea');
+const eventInput = $('eventInput');
+const logEventBtn = $('logEventBtn');
+const clockDisplay = $('clockDisplay');
+const adminSection = $('adminSection');
+const superAdminPanel = $('superAdminPanel');
+const schoolNameInput = $('schoolNameInput');
+const schoolAddressInput = $('schoolAddressInput');
+const schoolLocationInput = $('schoolLocationInput');
+const updateSchoolBtn = $('updateSchoolBtn');
+const exportBtn = $('exportExcelBtn');
+const selfieBtn = $('selfieLoginBtn');
+const offlineBanner = $('offlineBanner');
+const syncStatus = $('syncStatus');
+const installBtn = $('installBtn');
+const logoutBtn = $('logoutBtn');
+const loginForm = $('loginForm');
+const mainApp = $('mainApp');
+const loginBtn = $('loginBtn');
+const loginEmail = $('loginEmail');
+const loginPassword = $('loginPassword');
+const userList = $('userList');
+const schoolList = $('schoolList');
+const addUserBtn = $('addUserBtn');
+const addSchoolBtn = $('addSchoolBtn');
+const newUserSchool = $('newUserSchool');
+
+// ─── AUTH FUNCTIONS ──────────────────────
+async function login(email, password) {
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
         });
-    }
-
-    function saveToDB(storeName, data) {
-        return new Promise((resolve, reject) => {
-            if (!db) return reject('DB not open');
-            const tx = db.transaction(storeName, 'readwrite');
-            const store = tx.objectStore(storeName);
-            const request = store.put(data);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    function getAllFromDB(storeName) {
-        return new Promise((resolve, reject) => {
-            if (!db) return reject('DB not open');
-            const tx = db.transaction(storeName, 'readonly');
-            const store = tx.objectStore(storeName);
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    function deleteFromDB(storeName, key) {
-        return new Promise((resolve, reject) => {
-            if (!db) return reject('DB not open');
-            const tx = db.transaction(storeName, 'readwrite');
-            const store = tx.objectStore(storeName);
-            const request = store.delete(key);
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
-
-    // Core functions
-    function getCurrentMonthYear() {
-        const d = new Date();
-        return d.toLocaleString('en-PH', { month: 'long', year: 'numeric' });
-    }
-
-    function generateSampleDTR() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const records = [];
-        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month, d);
-            const dayName = dayNames[dateObj.getDay()];
-            const isWeekend = (dateObj.getDay() === 0 || dateObj.getDay() === 6);
-            let timeIn = '', timeOut = '', status = '';
-
-            if (isWeekend) {
-                status = 'Weekend';
-            } else {
-                if (d === 5) { status = 'Training'; timeIn = '08:00'; timeOut = '17:00'; }
-                else if (d === 12) { status = 'Class Suspension'; timeIn = '--'; timeOut = '--'; }
-                else if (d === 19) { status = 'Seminar'; timeIn = '09:00'; timeOut = '16:30'; }
-                else if (d === 25) { status = 'Holiday'; timeIn = '--'; timeOut = '--'; }
-                else {
-                    timeIn = (d % 3 === 0) ? '07:55' : '08:02';
-                    timeOut = (d % 4 === 0) ? '16:58' : '17:03';
-                    status = 'Present';
-                }
-            }
-            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            records.push({
-                date: dateStr,
-                day: dayName,
-                timeIn: timeIn,
-                timeOut: timeOut,
-                status: status
-            });
-        }
-        return records;
-    }
-
-    async function loadData() {
-        try {
-            const schoolDataFromDB = await getAllFromDB('schoolData');
-            if (schoolDataFromDB.length > 0) {
-                schoolData = schoolDataFromDB[0];
-                delete schoolData.id;
-            }
-
-            const records = await getAllFromDB('dtrRecords');
-            if (records.length > 0) {
-                dtrRecords = records;
-            } else {
-                dtrRecords = generateSampleDTR();
-                for (const record of dtrRecords) {
-                    await saveToDB('dtrRecords', record);
-                }
-            }
-
-            const userState = localStorage.getItem('antonft_user');
-            if (userState) {
-                const parsed = JSON.parse(userState);
-                currentUser = parsed.name || currentUser;
-                userRole = parsed.role || userRole;
-                isLoggedIn = true;
-            }
-
-            refreshUI();
-        } catch (error) {
-            console.error('Error loading data:', error);
-            dtrRecords = generateSampleDTR();
-            refreshUI();
-        }
-    }
-
-    function renderDTR(records) {
-        if (!records || records.length === 0) {
-            dtrBody.innerHTML = `<tr><td colspan="5" style="padding:30px; color:#6b7f8f;">No DTR records for this month.</td></tr>`;
-            return;
-        }
-        let html = '';
-        records.forEach(r => {
-            html += `<tr>
-                <td><strong>${r.date}</strong></td>
-                <td>${r.day}</td>
-                <td class="time-in">${r.timeIn || '--'}</td>
-                <td class="time-out">${r.timeOut || '--'}</td>
-                <td><span class="status-badge">${r.status || '—'}</span></td>
-            </tr>`;
-        });
-        dtrBody.innerHTML = html;
-    }
-
-    function refreshUI() {
-        currentUserDisplay.textContent = currentUser || 'Guest';
-        roleTag.textContent = userRole === 'superadmin' ? 'Superadmin' : (userRole === 'admin' ? 'School Admin' : 'Teacher');
-        monthLabel.textContent = getCurrentMonthYear();
-
-        if (userRole === 'admin' || userRole === 'superadmin') {
-            adminSection.style.display = 'flex';
-            schoolNameInput.value = schoolData.name;
-            schoolAddressInput.value = schoolData.address;
-            schoolLocationInput.value = `${schoolData.location.lat}, ${schoolData.location.lng}`;
-        } else {
-            adminSection.style.display = 'none';
-        }
-
-        updateGeoStatus();
-        renderDTR(dtrRecords);
-        updateOnlineStatus();
-    }
-
-    function updateGeoStatus() {
-        const icon = geoStatus.querySelector('i');
-        if (isWithinGeofence) {
-            icon.className = 'fas fa-map-pin geo-ok';
-            geoText.textContent = `📍 ${schoolData.name} (within ${schoolData.radius}m)`;
-            eventArea.style.display = 'none';
-        } else {
-            icon.className = 'fas fa-map-pin geo-fail';
-            geoText.textContent = `⚠️ Outside ${schoolData.name} zone`;
-            eventArea.style.display = 'flex';
-        }
-    }
-
-    function updateOnlineStatus() {
-        if (isOnline) {
-            offlineBanner.classList.remove('show');
-            syncData();
-        } else {
-            offlineBanner.classList.add('show');
-            updateSyncStatus(false, 'Offline - data saved locally');
-        }
-    }
-
-    function updateSyncStatus(ok, message) {
-        const icon = syncStatus.querySelector('i');
-        const text = syncStatus.querySelector('span');
-        if (ok) {
-            icon.className = 'fas fa-check-circle sync-ok';
-            text.textContent = message;
-        } else {
-            icon.className = 'fas fa-sync fa-spin sync-pending';
-            text.textContent = message;
-        }
-    }
-
-    async function syncData() {
-        if (!isOnline) {
-            updateSyncStatus(false, 'Offline - waiting for connection');
-            return;
-        }
-        try {
-            const pending = await getAllFromDB('syncQueue');
-            if (pending.length === 0) {
-                updateSyncStatus(true, 'All data synced');
-                return;
-            }
-            updateSyncStatus(false, `Syncing ${pending.length} items...`);
-            for (const item of pending) {
-                console.log('Syncing:', item);
-                await deleteFromDB('syncQueue', item.id);
-            }
-            updateSyncStatus(true, 'All data synced');
-        } catch (error) {
-            console.error('Sync error:', error);
-            updateSyncStatus(false, 'Sync failed - will retry');
-        }
-    }
-
-    async function queueForSync(data) {
-        await saveToDB('syncQueue', { ...data, timestamp: Date.now() });
-        if (isOnline) {
-            syncData();
-        } else {
-            updateSyncStatus(false, 'Data saved locally - will sync when online');
-        }
-    }
-
-    function checkGeofence() {
-        const random = Math.random();
-        isWithinGeofence = random > 0.15;
-        updateGeoStatus();
-    }
-
-    // Login
-    async function selfieLogin() {
-        const users = [
-            { name: 'Maria Santos', role: 'teacher' },
-            { name: 'Jose Rizal', role: 'teacher' },
-            { name: 'Admin Dela Cruz', role: 'admin' },
-            { name: 'Superadmin Tan', role: 'superadmin' }
-        ];
-        const picked = users[Math.floor(Math.random() * users.length)];
-        currentUser = picked.name;
-        userRole = picked.role;
-        isLoggedIn = true;
-
-        localStorage.setItem('antonft_user', JSON.stringify({ name: currentUser, role: userRole }));
+        if (error) throw error;
         
-        await saveToDB('users', { name: currentUser, role: userRole, timestamp: Date.now() });
+        // Get user profile
+        const { data: profile, error: profileError } = await supabase
+            .from('users')
+            .select('*, schools(*)')
+            .eq('email', email)
+            .single();
         
-        refreshUI();
-        alert(`✅ Logged in as ${currentUser} (${userRole}) via Selfie.`);
-    }
-
-    // Log Event
-    async function logEvent() {
-        const eventText = eventInput.value.trim();
-        if (!eventText) {
-            alert('Please describe the event (training, suspension, etc.)');
-            return;
-        }
-
-        const today = new Date();
-        const dateStr = today.toISOString().slice(0,10);
-        let record = dtrRecords.find(r => r.date === dateStr);
+        if (profileError) throw profileError;
         
-        if (record) {
-            record.status = eventText;
-            record.timeIn = '--';
-            record.timeOut = '--';
-        } else {
-            const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-            record = {
-                date: dateStr,
-                day: dayNames[today.getDay()],
-                timeIn: '--',
-                timeOut: '--',
-                status: eventText
-            };
-            dtrRecords.push(record);
+        currentUser = profile;
+        if (profile.schools) {
+            currentSchool = profile.schools;
         }
-
-        await saveToDB('dtrRecords', record);
-        await queueForSync({ action: 'logEvent', record });
-        renderDTR(dtrRecords);
-        eventInput.value = '';
-        alert(`✅ Event "${eventText}" logged.`);
-    }
-
-    // Export Excel
-    function exportExcel() {
-        if (!dtrRecords || dtrRecords.length === 0) {
-            alert('No DTR data to export.');
-            return;
-        }
-
-        const rows = dtrRecords.map(r => ({
-            'Date': r.date,
-            'Day': r.day,
-            'Time In': r.timeIn || '--',
-            'Time Out': r.timeOut || '--',
-            'Status/Event': r.status || ''
+        
+        localStorage.setItem('antonft_session', JSON.stringify({
+            user: currentUser,
+            school: currentSchool
         }));
-
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(rows);
-
-        const metaData = [
-            [`ANTON FT - DepEd DTR`],
-            [`School: ${schoolData.name}`],
-            [`Address: ${schoolData.address}`],
-            [`Month: ${getCurrentMonthYear()}`],
-            []
-        ];
-        XLSX.utils.sheet_add_aoa(ws, metaData, { origin: 'A1' });
-
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/octet-stream' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `DTR_${schoolData.name.replace(/\s/g,'_')}_${getCurrentMonthYear().replace(/\s/g,'_')}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // Update School
-    async function updateSchool() {
-        const name = schoolNameInput.value.trim();
-        const addr = schoolAddressInput.value.trim();
-        const locStr = schoolLocationInput.value.trim();
-        if (!name || !addr || !locStr) {
-            alert('All fields required.');
-            return;
-        }
-        const parts = locStr.split(',').map(s => parseFloat(s.trim()));
-        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
-            alert('Location must be in format: lat, lng (e.g. 14.5995, 120.9842)');
-            return;
-        }
-        schoolData.name = name;
-        schoolData.address = addr;
-        schoolData.location = { lat: parts[0], lng: parts[1] };
-
-        await saveToDB('schoolData', { ...schoolData, id: 'school' });
-        await queueForSync({ action: 'updateSchool', schoolData });
-        refreshUI();
-        alert('✅ School information updated.');
-    }
-
-    // Clock
-    function updateClock() {
-        const now = new Date();
-        clockDisplay.textContent = now.toLocaleTimeString('en-PH', { hour12: false });
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    // PWA Install
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBtn.classList.add('show');
-    });
-
-    installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const result = await deferredPrompt.userChoice;
-            if (result.outcome === 'accepted') {
-                installBtn.classList.remove('show');
-            }
-            deferredPrompt = null;
-        }
-    });
-
-    // Online/Offline
-    window.addEventListener('online', () => {
-        isOnline = true;
-        updateOnlineStatus();
-        syncData();
-    });
-
-    window.addEventListener('offline', () => {
-        isOnline = false;
-        updateOnlineStatus();
-    });
-
-    // Event Bindings
-    selfieBtn.addEventListener('click', selfieLogin);
-    logEventBtn.addEventListener('click', logEvent);
-    exportBtn.addEventListener('click', exportExcel);
-    updateSchoolBtn.addEventListener('click', updateSchool);
-    eventInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') logEvent();
-    });
-    geoStatus.addEventListener('dblclick', function() {
-        isWithinGeofence = !isWithinGeofence;
-        updateGeoStatus();
-    });
-
-    // Initialize
-    async function init() {
-        await openDB();
-        await loadData();
-        checkGeofence();
-        setInterval(checkGeofence, 30000);
-        setInterval(syncData, 60000);
         
-        if ('serviceWorker' in navigator) {
-            try {
-                await navigator.serviceWorker.register('sw.js');
-                console.log('Service Worker registered');
-            } catch (error) {
-                console.log('Service Worker registration failed:', error);
+        showMainApp();
+        await loadAllData();
+        refreshUI();
+        return true;
+    } catch (error) {
+        alert('Login failed: ' + error.message);
+        return false;
+    }
+}
+
+async function logout() {
+    await supabase.auth.signOut();
+    localStorage.removeItem('antonft_session');
+    currentUser = null;
+    currentSchool = null;
+    showLoginForm();
+}
+
+function showLoginForm() {
+    loginForm.style.display = 'block';
+    mainApp.style.display = 'none';
+    logoutBtn.style.display = 'none';
+}
+
+function showMainApp() {
+    loginForm.style.display = 'none';
+    mainApp.style.display = 'block';
+    logoutBtn.style.display = 'inline-flex';
+}
+
+// ─── USER MANAGEMENT ─────────────────────
+function generatePassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
+async function createUser(email, fullName, role, schoolId = null) {
+    try {
+        const password = generatePassword();
+        
+        // Create auth user
+        const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    role: role
+                }
             }
+        });
+        
+        if (error) throw error;
+        
+        // Create profile
+        const { error: profileError } = await supabase
+            .from('users')
+            .insert([{
+                id: data.user.id,
+                email: email,
+                full_name: fullName,
+                role: role,
+                school_id: schoolId || null
+            }]);
+        
+        if (profileError) throw profileError;
+        
+        return { success: true, password: password };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function loadAllData() {
+    if (currentUser.role === 'super_admin') {
+        // Load all schools
+        const { data: schools, error: schoolsError } = await supabase
+            .from('schools')
+            .select('*')
+            .order('name');
+        
+        if (!schoolsError) {
+            allSchools = schools;
+            populateSchoolSelect();
+            renderSchools();
+        }
+        
+        // Load all users
+        const { data: users, error: usersError } = await supabase
+            .from('users')
+            .select('*, schools(name)')
+            .order('created_at', { ascending: false });
+        
+        if (!usersError) {
+            allUsers = users;
+            renderUsers();
+        }
+    } else if (currentUser.role === 'school_admin' && currentSchool) {
+        // Load teachers in this school
+        const { data: users, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('school_id', currentSchool.id)
+            .eq('role', 'teacher')
+            .order('created_at', { ascending: false });
+        
+        if (!error) {
+            allUsers = users;
+            renderUsers();
         }
     }
+    
+    // Load DTR
+    await loadDTR();
+}
 
-    init();
-    console.log('✅ ANTON FT v2.0 PWA loaded.');
-})();
+async function loadDTR() {
+    if (!currentUser) return;
+    
+    const { data, error } = await supabase
+        .from('attendance_logs')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('date', { ascending: true });
+    
+    if (error) {
+        console.error('Error loading DTR:', error);
+        return;
+    }
+    
+    dtrRecords = data || [];
+    renderDTR(dtrRecords);
+}
+
+function populateSchoolSelect() {
+    newUserSchool.innerHTML = '<option value="">Select School (optional)</option>';
+    allSchools.forEach(school => {
+        const option = document.createElement('option');
+        option.value = school.id;
+        option.textContent = school.name;
+        newUserSchool.appendChild(option);
+    });
+}
+
+// ─── RENDER FUNCTIONS ────────────────────
+function renderSchools() {
+    if (!schoolList) return;
+    
+    schoolList.innerHTML = allSchools.map(school => `
+        <div class="school-item">
+            <strong>${school.name}</strong>
+            <span style="color:#5a7a94;font-size:13px;margin-left:12px;">${school.address || 'No address'}</span>
+            <span style="float:right;">
+                <button onclick="selectSchool('${school.id}')" style="background:#0b3b5c;color:white;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;margin-right:8px;">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button onclick="deleteSchool('${school.id}')" style="background:#b13e3e;color:white;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </span>
+        </div>
+    `).join('');
+}
+
+function renderUsers() {
+    if (!userList) return;
+    
+    userList.innerHTML = allUsers.map(user => `
+        <div class="user-item">
+            <div class="user-info">
+                <span class="user-name">${user.full_name}</span>
+                <span class="user-email">${user.email}</span>
+                <span class="user-password">${user.role === 'super_admin' ? '🔑 Super Admin' : user.schools?.name || 'No school'}</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <select class="role-select" data-user-id="${user.id}" onchange="updateUserRole('${user.id}', this.value)">
+                    <option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>Teacher</option>
+                    <option value="school_admin" ${user.role === 'school_admin' ? 'selected' : ''}>School Admin</option>
+                    <option value="super_admin" ${user.role === 'super_admin' ? 'selected' : ''}>Super Admin</option>
+                </select>
+                <button onclick="resetUserPassword('${user.id}', '${user.email}')" style="background:#1f6390;color:white;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;">
+                    <i class="fas fa-key"></i> Reset
+                </button>
+                <button onclick="deleteUser('${user.id}')" style="background:#b13e3e;color:white;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderDTR(records) {
+    if (!records || records.length === 0) {
+        dtrBody.innerHTML = `<tr><td colspan="5" style="padding:30px; color:#6b7f8f;">No DTR records for this month.</td></tr>`;
+        return;
+    }
+    
+    const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+    let html = '';
+    sorted.forEach(r => {
+        const dateObj = new Date(r.date);
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        html += `<tr>
+            <td><strong>${r.date}</strong></td>
+            <td>${dayNames[dateObj.getDay()]}</td>
+            <td class="time-in">${r.time_in || '--'}</td>
+            <td class="time-out">${r.time_out || '--'}</td>
+            <td><span class="status-badge">${r.status || '—'}</span></td>
+        </tr>`;
+    });
+    dtrBody.innerHTML = html;
+}
+
+function refreshUI() {
+    if (!currentUser) return;
+    
+    currentUserDisplay.textContent = currentUser.full_name || 'User';
+    roleTag.textContent = currentUser.role === 'super_admin' ? 'Super Admin' : 
+                         currentUser.role === 'school_admin' ? 'School Admin' : 'Teacher';
+    monthLabel.textContent = new Date().toLocaleString('en-PH', { month: 'long', year: 'numeric' });
+    
+    // Show admin section for school admins and super admins
+    if (currentUser.role === 'school_admin' || currentUser.role === 'super_admin') {
+        adminSection.style.display = 'flex';
+        if (currentSchool) {
+            schoolNameInput.value = currentSchool.name || '';
+            schoolAddressInput.value = currentSchool.address || '';
+            schoolLocationInput.value = `${currentSchool.latitude || 14.5995}, ${currentSchool.longitude || 120.9842}`;
+        }
+    } else {
+        adminSection.style.display = 'none';
+    }
+    
+    // Show super admin panel
+    if (currentUser.role === 'super_admin') {
+        superAdminPanel.style.display = 'block';
+    } else {
+        superAdminPanel.style.display = 'none';
+    }
+    
+    updateGeoStatus();
+    updateOnlineStatus();
+}
+
+function updateGeoStatus() {
+    const icon = geoStatus.querySelector('i');
+    if (isWithinGeofence) {
+        icon.className = 'fas fa-map-pin geo-ok';
+        geoText.textContent = `📍 ${currentSchool?.name || 'School'} (within ${currentSchool?.radius || 100}m)`;
+        eventArea.style.display = 'none';
+    } else {
+        icon.className = 'fas fa-map-pin geo-fail';
+        geoText.textContent = `⚠️ Outside ${currentSchool?.name || 'School'} zone`;
+        eventArea.style.display = 'flex';
+    }
+}
+
+function updateOnlineStatus() {
+    if (isOnline) {
+        offlineBanner.classList.remove('show');
+    } else {
+        offlineBanner.classList.add('show');
+    }
+}
+
+// ─── SUPER ADMIN ACTIONS ─────────────────
+async function addSchool() {
+    const name = $('newSchoolName').value.trim();
+    const address = $('newSchoolAddress').value.trim();
+    
+    if (!name) {
+        alert('Please enter a school name.');
+        return;
+    }
+    
+    const { data, error } = await supabase
+        .from('schools')
+        .insert([{
+            name: name,
+            address: address || null,
+            latitude: 14.5995,
+            longitude: 120.9842,
+            radius: 100
+        }])
+        .select();
+    
+    if (error) {
+        alert('Failed to add school: ' + error.message);
+        return;
+    }
+    
+    $('newSchoolName').value = '';
+    $('newSchoolAddress').value = '';
+    alert('School added successfully!');
+    await loadAllData();
+}
+
+async function deleteSchool(schoolId) {
+    if (!confirm('Delete this school? This will also delete all associated users.')) return;
+    
+    const { error } = await supabase
+        .from('schools')
+        .delete()
+        .eq('id', schoolId);
+    
+    if (error) {
+        alert('Failed to delete school: ' + error.message);
+        return;
+    }
+    
+    await loadAllData();
+}
+
+async function selectSchool(schoolId) {
+    const school = allSchools.find(s => s.id === schoolId);
+    if (!school) return;
+    
+    schoolNameInput.value = school.name;
+    schoolAddressInput.value = school.address || '';
+    schoolLocationInput.value = `${school.latitude || 14.5995}, ${school.longitude || 120.9842}`;
+    
+    // Switch to this school for the admin
+    const { error } = await supabase
+        .from('users')
+        .update({ school_id: schoolId })
+        .eq('id', currentUser.id);
+    
+    if (!error) {
+        currentSchool = school;
+        await loadAllData();
+        refreshUI();
+        alert('Switched to school: ' + school.name);
+    }
+}
+
+async function addUser() {
+    const email = $('newUserEmail').value.trim();
+    const name = $('newUserName').value.trim();
+    const role = $('newUserRole').value;
+    const schoolId = $('newUserSchool').value || null;
+    
+    if (!email || !name) {
+        alert('Please fill in all fields.');
+        return;
+    }
+    
+    const result = await createUser(email, name, role, schoolId);
+    
+    if (result.success) {
+        alert(`✅ User created successfully!\n\nEmail: ${email}\nPassword: ${result.password}\n\nPlease save these credentials.`);
+        $('newUserEmail').value = '';
+        $('newUserName').value = '';
+        await loadAllData();
+    } else {
+        alert('Failed to create user: ' + result.error);
+    }
+}
+
+async function updateUserRole(userId, newRole) {
+    if (!confirm('Change this user\'s role to ' + newRole + '?')) return;
+    
+    const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId);
+    
+    if (error) {
+        alert('Failed to update role: ' + error.message);
+        return;
+    }
+    
+    await loadAllData();
+}
+
+async function resetUserPassword(userId, email) {
+    if (!confirm(`Reset password for ${email}?`)) return;
+    
+    const newPassword = generatePassword();
+    
+    // Update password in Auth
+    const { error } = await supabase.auth.admin.updateUserById(
+        userId,
+        { password: newPassword }
+    );
+    
+    if (error) {
+        alert('Failed to reset password: ' + error.message);
+        return;
+    }
+    
+    alert(`✅ Password reset successful!\n\nEmail: ${email}\nNew Password: ${newPassword}\n\nPlease save these credentials.`);
+    await loadAllData();
+}
+
+async function deleteUser(userId) {
+    if (!confirm('Delete this user? This cannot be undone.')) return;
+    
+    // Delete from auth
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    
+    if (error) {
+        alert('Failed to delete user: ' + error.message);
+        return;
+    }
+    
+    await loadAllData();
+}
+
+// ─── LOG EVENT ───────────────────────────
+async function logEvent() {
+    const eventText = eventInput.value.trim();
+    if (!eventText) {
+        alert('Please describe the event.');
+        return;
+    }
+    
+    const today = new Date().toISOString().slice(0, 10);
+    
+    const record = {
+        user_id: currentUser.id,
+        date: today,
+        status: eventText,
+        event_note: eventText,
+        is_within_geofence: isWithinGeofence
+    };
+    
+    const { error } = await supabase
+        .from('attendance_logs')
+        .insert([record]);
+    
+    if (error) {
+        alert('Failed to log event: ' + error.message);
+        return;
+    }
+    
+    eventInput.value = '';
+    await loadDTR();
+    alert('✅ Event logged successfully!');
+}
+
+// ─── EXPORT EXCEL ────────────────────────
+function exportExcel() {
+    if (!dtrRecords || dtrRecords.length === 0) {
+        alert('No DTR data to export.');
+        return;
+    }
+
+    const rows = dtrRecords.map(r => ({
+        'Date': r.date,
+        'Time In': r.time_in || '--',
+        'Time Out': r.time_out || '--',
+        'Status': r.status || ''
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    const metaData = [
+        [`ANTON FT - DepEd DTR`],
+        [`School: ${currentSchool?.name || 'N/A'}`],
+        [`Teacher: ${currentUser?.full_name || 'N/A'}`],
+        [`Month: ${new Date().toLocaleString('en-PH', { month: 'long', year: 'numeric' })}`],
+        []
+    ];
+    XLSX.utils.sheet_add_aoa(ws, metaData, { origin: 'A1' });
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `DTR_${currentUser?.full_name?.replace(/\s/g,'_') || 'Teacher'}_${new Date().toISOString().slice(0,7)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// ─── SCHOOL UPDATE ──────────────────────
+async function updateSchool() {
+    if (!currentUser || (currentUser.role !== 'school_admin' && currentUser.role !== 'super_admin')) {
+        alert('You do not have permission to update school settings.');
+        return;
+    }
+    
+    const name = schoolNameInput.value.trim();
+    const addr = schoolAddressInput.value.trim();
+    const locStr = schoolLocationInput.value.trim();
+    
+    if (!name) {
+        alert('School name is required.');
+        return;
+    }
+    
+    const parts = locStr.split(',').map(s => parseFloat(s.trim()));
+    const lat = parts[0] || 14.5995;
+    const lng = parts[1] || 120.9842;
+    
+    const schoolId = currentSchool?.id || (allSchools[0]?.id);
+    if (!schoolId) {
+        alert('No school found to update.');
+        return;
+    }
+    
+    const { error } = await supabase
+        .from('schools')
+        .update({
+            name: name,
+            address: addr || null,
+            latitude: lat,
+            longitude: lng
+        })
+        .eq('id', schoolId);
+    
+    if (error) {
+        alert('Failed to update school: ' + error.message);
+        return;
+    }
+    
+    if (currentSchool) {
+        currentSchool.name = name;
+        currentSchool.address = addr;
+        currentSchool.latitude = lat;
+        currentSchool.longitude = lng;
+    }
+    
+    alert('✅ School updated successfully!');
+    refreshUI();
+}
+
+// ─── CLOCK ──────────────────────────────
+function updateClock() {
+    const now = new Date();
+    clockDisplay.textContent = now.toLocaleTimeString('en-PH', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── PWA INSTALL ────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.classList.add('show');
+});
+
+installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const result = await deferredPrompt.userChoice;
+        if (result.outcome === 'accepted') {
+            installBtn.classList.remove('show');
+        }
+        deferredPrompt = null;
+    }
+});
+
+// ─── ONLINE/OFFLINE ─────────────────────
+window.addEventListener('online', () => {
+    isOnline = true;
+    updateOnlineStatus();
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    updateOnlineStatus();
+});
+
+// ─── GEO FENCE ──────────────────────────
+function checkGeofence() {
+    // Simulated for demo - in production, use navigator.geolocation
+    const random = Math.random();
+    isWithinGeofence = random > 0.15;
+    updateGeoStatus();
+}
+setInterval(checkGeofence, 30000);
+
+// ─── EVENT BINDINGS ─────────────────────
+// Auth
+loginBtn.addEventListener('click', async () => {
+    await login(loginEmail.value, loginPassword.value);
+});
+
+loginPassword.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+        await login(loginEmail.value, loginPassword.value);
+    }
+});
+
+logoutBtn.addEventListener('click', logout);
+
+// App
+logEventBtn.addEventListener('click', logEvent);
+eventInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') logEvent();
+});
+
+exportBtn.addEventListener('click', exportExcel);
+updateSchoolBtn.addEventListener('click', updateSchool);
+addUserBtn.addEventListener('click', addUser);
+addSchoolBtn.addEventListener('click', addSchool);
+
+// ─── INIT ───────────────────────────────
+async function init() {
+    // Check for existing session
+    const session = localStorage.getItem('antonft_session');
+    if (session) {
+        try {
+            const parsed = JSON.parse(session);
+            currentUser = parsed.user;
+            currentSchool = parsed.school;
+            showMainApp();
+            await loadAllData();
+            refreshUI();
+            
+            // Verify session is still valid
+            const { data, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', currentUser.id)
+                .single();
+            
+            if (error || !data) {
+                // Session expired
+                localStorage.removeItem('antonft_session');
+                currentUser = null;
+                currentSchool = null;
+                showLoginForm();
+            } else {
+                currentUser = data;
+                if (data.school_id) {
+                    const { data: school } = await supabase
+                        .from('schools')
+                        .select('*')
+                        .eq('id', data.school_id)
+                        .single();
+                    currentSchool = school;
+                }
+                refreshUI();
+            }
+        } catch (e) {
+            localStorage.removeItem('antonft_session');
+            showLoginForm();
+        }
+    } else {
+        showLoginForm();
+    }
+    
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+        try {
+            await navigator.serviceWorker.register('sw.js');
+            console.log('Service Worker registered');
+        } catch (error) {
+            console.log('Service Worker registration failed:', error);
+        }
+    }
+}
+
+init();
+console.log('✅ ANTON FT v3.0 with Supabase loaded!');
+console.log('🔑 Super Admin: antoninotolentino2022@gmail.com / SuperAdmin2026');
 </script>
 </body>
 </html>
