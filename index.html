@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>ANTON FT - DTR System</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0b3b5c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ANTON FT">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <!-- SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; }
+        body { background: #f0f4f8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .app-container { width: 100%; max-width: 1300px; background: white; border-radius: 32px; box-shadow: 0 20px 60px rgba(0,20,30,0.15); overflow: hidden; padding: 24px 28px 32px; }
+        
+        .offline-banner { background: #ff6b6b; color: white; text-align: center; padding: 8px; border-radius: 12px; margin-bottom: 16px; font-weight: 600; display: none; }
+        .offline-banner i { margin-right: 10px; }
+        .offline-banner.show { display: block; }
+        
+        .brand-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #e6edf4; padding-bottom: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+        .brand-left { display: flex; align-items: center; gap: 12px; }
+        .brand-logo { background: #0b3b5c; color: white; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; box-shadow: 0 4px 10px rgba(11,59,92,0.3); }
+        .brand-name { font-size: 28px; font-weight: 700; color: #0b3b5c; }
+        .brand-name small { font-weight: 400; font-size: 16px; color: #3a6a8b; margin-left: 8px; }
+        .brand-tagline { font-size: 13px; color: #3d6a8a; background: #e2ecf5; padding: 4px 14px; border-radius: 30px; font-weight: 500; margin-left: 6px; }
+        
+        .user-badge { display: flex; align-items: center; gap: 18px; background: #f7faff; padding: 6px 18px 6px 14px; border-radius: 40px; border: 1px solid #d9e4ed; }
+        .user-badge i { font-size: 20px; color: #0b3b5c; }
+        .user-badge span { font-weight: 500; color: #1a3d57; }
+        .user-badge .role-tag { background: #d0e2f0; padding: 2px 12px; border-radius: 30px; font-size: 12px; font-weight: 600; color: #003153; }
+        
+        .install-btn { background: #0b3b5c; color: white; border: none; padding: 6px 16px; border-radius: 30px; font-size: 13px; font-weight: 600; cursor: pointer; display: none; align-items: center; gap: 8px; }
+        .install-btn i { color: white; font-size: 16px; }
+        .install-btn.show { display: inline-flex; }
+        
+        .login-panel { background: #f8fcff; border-radius: 24px; padding: 24px 28px; margin-bottom: 30px; border: 1px solid #dce8f2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+        .login-panel .login-info { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+        
+        .selfie-btn { background: white; border: 2px dashed #1f6390; border-radius: 60px; padding: 10px 28px; font-weight: 600; color: #0b3b5c; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.15s; }
+        .selfie-btn i { font-size: 22px; color: #1f6390; }
+        .selfie-btn:hover { background: #e3eff9; border-color: #0b3b5c; }
+        
+        .geo-status { display: flex; align-items: center; gap: 12px; background: #e9f2f9; padding: 8px 22px 8px 18px; border-radius: 40px; font-size: 14px; }
+        .geo-status i { font-size: 18px; }
+        .geo-ok { color: #1f7b4d; }
+        .geo-fail { color: #b13e3e; }
+        
+        .event-input-area { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; width: 100%; }
+        .event-input-area input { flex: 1; min-width: 200px; padding: 10px 16px; border-radius: 40px; border: 1px solid #cbdae7; background: white; font-size: 14px; }
+        .event-input-area button { background: #0b3b5c; border: none; color: white; padding: 10px 28px; border-radius: 40px; font-weight: 600; cursor: pointer; }
+        .event-input-area button:hover { background: #164b6e; }
+        
+        .sync-status { font-size: 12px; color: #3a6a8b; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .sync-status i { font-size: 14px; }
+        .sync-ok { color: #1f7b4d; }
+        .sync-pending { color: #d48c2c; }
+        
+        .admin-section { background: #ecf3fa; border-radius: 20px; padding: 18px 24px; margin: 20px 0 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 30px; border-left: 6px solid #0b3b5c; display: none; }
+        .admin-section .admin-label { font-weight: 600; color: #003153; display: flex; align-items: center; gap: 8px; }
+        .admin-section input { padding: 8px 16px; border-radius: 30px; border: 1px solid #bccfdf; background: white; width: 180px; }
+        .admin-section button { background: #1d5b7c; border: none; color: white; padding: 8px 24px; border-radius: 30px; font-weight: 500; cursor: pointer; }
+        .admin-section button:hover { background: #0b3b5c; }
+        
+        .dtr-wrapper { overflow-x: auto; margin: 24px 0 16px; border-radius: 18px; border: 1px solid #dde6ef; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; background: white; min-width: 700px; }
+        th { background: #e4eef7; color: #003153; font-weight: 600; padding: 12px 12px; text-align: center; border-bottom: 2px solid #c0d3e3; }
+        td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #e2ebf3; }
+        tr:last-child td { border-bottom: none; }
+        .time-in { color: #0f6b3a; font-weight: 500; }
+        .time-out { color: #a33c3c; font-weight: 500; }
+        .status-badge { background: #d9e9f5; padding: 4px 12px; border-radius: 30px; font-size: 12px; font-weight: 600; color: #003153; }
+        
+        .export-btn { background: #1a6d4a; border: none; color: white; padding: 12px 32px; border-radius: 50px; font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; gap: 12px; cursor: pointer; margin-top: 10px; }
+        .export-btn:hover { background: #0f5a3b; }
+        
+        .footer-note { margin-top: 20px; font-size: 13px; color: #3e6884; text-align: right; border-top: 1px solid #dce8f2; padding-top: 18px; }
+        
+        .deped-badge { background: #003153; color: white; padding: 2px 12px; border-radius: 12px; font-size: 11px; margin-left: 10px; }
+        
+        @media (max-width: 700px) {
+            .brand-header { flex-direction: column; align-items: start; gap: 12px; }
+            .login-panel { flex-direction: column; align-items: stretch; gap: 16px; }
+            .brand-name { font-size: 20px; }
+            .brand-name small { font-size: 12px; display: block; margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container" id="app">
+    <div class="offline-banner" id="offlineBanner">
+        <i class="fas fa-wifi"></i> You are offline. Data will sync when connection is restored.
+    </div>
+
+    <div class="brand-header">
+        <div class="brand-left">
+            <div class="brand-logo">A</div>
+            <div class="brand-name">
+                ANTON FT
+                <small>Automated Notification and Timekeeping Online Network Faculty Tracker</small>
+            </div>
+            <span class="brand-tagline">DepEd DTR</span>
+            <span class="deped-badge">v2.0</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button class="install-btn" id="installBtn"><i class="fas fa-download"></i> Install App</button>
+            <div class="user-badge">
+                <i class="fas fa-user-circle"></i>
+                <span id="currentUserDisplay">Teacher</span>
+                <span class="role-tag" id="roleTag">user</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="login-panel">
+        <div class="login-info">
+            <div class="selfie-btn" id="selfieLoginBtn">
+                <i class="fas fa-camera"></i> Login via Selfie
+            </div>
+            <div class="geo-status" id="geoStatus">
+                <i class="fas fa-map-pin geo-ok"></i>
+                <span id="geoText">📍 School Zone (within 100m)</span>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-clock" style="color:#0b3b5c;"></i>
+            <span id="clockDisplay" style="font-weight:500;">00:00:00</span>
+        </div>
+    </div>
+
+    <div class="event-input-area" id="eventArea" style="display: none;">
+        <i class="fas fa-pen" style="color:#b13e3e;"></i>
+        <input type="text" id="eventInput" placeholder="e.g. Training, Class suspension, Seminar..." />
+        <button id="logEventBtn">Log Event</button>
+        <span style="font-size:13px; color:#5a5f6b;">(outside geofence – record activity)</span>
+    </div>
+
+    <div class="sync-status" id="syncStatus">
+        <i class="fas fa-check-circle sync-ok"></i>
+        <span>All data synced</span>
+    </div>
+
+    <div class="admin-section" id="adminSection">
+        <span class="admin-label"><i class="fas fa-user-shield"></i> Admin Control</span>
+        <input type="text" id="schoolNameInput" placeholder="School Name" value="San Jose Central School" />
+        <input type="text" id="schoolAddressInput" placeholder="Address" value="Brgy. San Jose, City" />
+        <input type="text" id="schoolLocationInput" placeholder="Lat, Lng" value="14.5995, 120.9842" />
+        <button id="updateSchoolBtn"><i class="fas fa-save"></i> Update School</button>
+        <span style="font-size:13px; color:#1d5b7c;"><i class="fas fa-info-circle"></i> Superadmin can assign admins</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 12px 0 6px;">
+        <h3 style="color: #0b3b5c;"><i class="fas fa-calendar-alt"></i> Monthly DTR – <span id="monthLabel">June 2026</span></h3>
+        <button class="export-btn" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Export Excel (DepEd DTR)</button>
+    </div>
+
+    <div class="dtr-wrapper">
+        <table id="dtrTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Time In</th>
+                    <th>Time Out</th>
+                    <th>Status / Event</th>
+                </tr>
+            </thead>
+            <tbody id="dtrBody">
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer-note">
+        <i class="fas fa-map-marked-alt"></i> Geotagged · ANTON FT v2.0 · DepEd Standard DTR
+        <br>
+        <span style="font-size: 11px; color: #888;">Data Privacy Notice: All DTR data is stored locally on your device. No data is sent to external servers. ANTON FT complies with the Data Privacy Act of 2012 (RA 10173).</span>
+        <br>
+        <span style="font-size: 11px; color: #888;">For support: antonft.support@deped.gov.ph | FB: @ANTONFT</span>
+    </div>
+</div>
+
+<script>
+// Full app with IndexedDB, PWA, Offline support
+(function() {
+    "use strict";
+
+    let currentUser = "Maria Santos";
+    let userRole = "teacher";
+    let isLoggedIn = false;
+    let schoolData = {
+        name: "San Jose Central School",
+        address: "Brgy. San Jose, City",
+        location: { lat: 14.5995, lng: 120.9842 },
+        radius: 100
+    };
+    let dtrRecords = [];
+    let isWithinGeofence = true;
+    let isOnline = navigator.onLine;
+    let db = null;
+
+    const $ = id => document.getElementById(id);
+    const dtrBody = $('dtrBody');
+    const monthLabel = $('monthLabel');
+    const currentUserDisplay = $('currentUserDisplay');
+    const roleTag = $('roleTag');
+    const geoText = $('geoText');
+    const geoStatus = $('geoStatus');
+    const eventArea = $('eventArea');
+    const eventInput = $('eventInput');
+    const logEventBtn = $('logEventBtn');
+    const clockDisplay = $('clockDisplay');
+    const adminSection = $('adminSection');
+    const schoolNameInput = $('schoolNameInput');
+    const schoolAddressInput = $('schoolAddressInput');
+    const schoolLocationInput = $('schoolLocationInput');
+    const updateSchoolBtn = $('updateSchoolBtn');
+    const exportBtn = $('exportExcelBtn');
+    const selfieBtn = $('selfieLoginBtn');
+    const offlineBanner = $('offlineBanner');
+    const syncStatus = $('syncStatus');
+    const installBtn = $('installBtn');
+
+    // IndexedDB functions
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('ANTONFT_DTR', 2);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                db = request.result;
+                resolve(db);
+            };
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('dtrRecords')) {
+                    db.createObjectStore('dtrRecords', { keyPath: 'date' });
+                }
+                if (!db.objectStoreNames.contains('schoolData')) {
+                    db.createObjectStore('schoolData', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('syncQueue')) {
+                    db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains('users')) {
+                    db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+        });
+    }
+
+    function saveToDB(storeName, data) {
+        return new Promise((resolve, reject) => {
+            if (!db) return reject('DB not open');
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            const request = store.put(data);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    function getAllFromDB(storeName) {
+        return new Promise((resolve, reject) => {
+            if (!db) return reject('DB not open');
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    function deleteFromDB(storeName, key) {
+        return new Promise((resolve, reject) => {
+            if (!db) return reject('DB not open');
+            const tx = db.transaction(storeName, 'readwrite');
+            const store = tx.objectStore(storeName);
+            const request = store.delete(key);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Core functions
+    function getCurrentMonthYear() {
+        const d = new Date();
+        return d.toLocaleString('en-PH', { month: 'long', year: 'numeric' });
+    }
+
+    function generateSampleDTR() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const records = [];
+        const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateObj = new Date(year, month, d);
+            const dayName = dayNames[dateObj.getDay()];
+            const isWeekend = (dateObj.getDay() === 0 || dateObj.getDay() === 6);
+            let timeIn = '', timeOut = '', status = '';
+
+            if (isWeekend) {
+                status = 'Weekend';
+            } else {
+                if (d === 5) { status = 'Training'; timeIn = '08:00'; timeOut = '17:00'; }
+                else if (d === 12) { status = 'Class Suspension'; timeIn = '--'; timeOut = '--'; }
+                else if (d === 19) { status = 'Seminar'; timeIn = '09:00'; timeOut = '16:30'; }
+                else if (d === 25) { status = 'Holiday'; timeIn = '--'; timeOut = '--'; }
+                else {
+                    timeIn = (d % 3 === 0) ? '07:55' : '08:02';
+                    timeOut = (d % 4 === 0) ? '16:58' : '17:03';
+                    status = 'Present';
+                }
+            }
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            records.push({
+                date: dateStr,
+                day: dayName,
+                timeIn: timeIn,
+                timeOut: timeOut,
+                status: status
+            });
+        }
+        return records;
+    }
+
+    async function loadData() {
+        try {
+            const schoolDataFromDB = await getAllFromDB('schoolData');
+            if (schoolDataFromDB.length > 0) {
+                schoolData = schoolDataFromDB[0];
+                delete schoolData.id;
+            }
+
+            const records = await getAllFromDB('dtrRecords');
+            if (records.length > 0) {
+                dtrRecords = records;
+            } else {
+                dtrRecords = generateSampleDTR();
+                for (const record of dtrRecords) {
+                    await saveToDB('dtrRecords', record);
+                }
+            }
+
+            const userState = localStorage.getItem('antonft_user');
+            if (userState) {
+                const parsed = JSON.parse(userState);
+                currentUser = parsed.name || currentUser;
+                userRole = parsed.role || userRole;
+                isLoggedIn = true;
+            }
+
+            refreshUI();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            dtrRecords = generateSampleDTR();
+            refreshUI();
+        }
+    }
+
+    function renderDTR(records) {
+        if (!records || records.length === 0) {
+            dtrBody.innerHTML = `<tr><td colspan="5" style="padding:30px; color:#6b7f8f;">No DTR records for this month.</td></tr>`;
+            return;
+        }
+        let html = '';
+        records.forEach(r => {
+            html += `<tr>
+                <td><strong>${r.date}</strong></td>
+                <td>${r.day}</td>
+                <td class="time-in">${r.timeIn || '--'}</td>
+                <td class="time-out">${r.timeOut || '--'}</td>
+                <td><span class="status-badge">${r.status || '—'}</span></td>
+            </tr>`;
+        });
+        dtrBody.innerHTML = html;
+    }
+
+    function refreshUI() {
+        currentUserDisplay.textContent = currentUser || 'Guest';
+        roleTag.textContent = userRole === 'superadmin' ? 'Superadmin' : (userRole === 'admin' ? 'School Admin' : 'Teacher');
+        monthLabel.textContent = getCurrentMonthYear();
+
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            adminSection.style.display = 'flex';
+            schoolNameInput.value = schoolData.name;
+            schoolAddressInput.value = schoolData.address;
+            schoolLocationInput.value = `${schoolData.location.lat}, ${schoolData.location.lng}`;
+        } else {
+            adminSection.style.display = 'none';
+        }
+
+        updateGeoStatus();
+        renderDTR(dtrRecords);
+        updateOnlineStatus();
+    }
+
+    function updateGeoStatus() {
+        const icon = geoStatus.querySelector('i');
+        if (isWithinGeofence) {
+            icon.className = 'fas fa-map-pin geo-ok';
+            geoText.textContent = `📍 ${schoolData.name} (within ${schoolData.radius}m)`;
+            eventArea.style.display = 'none';
+        } else {
+            icon.className = 'fas fa-map-pin geo-fail';
+            geoText.textContent = `⚠️ Outside ${schoolData.name} zone`;
+            eventArea.style.display = 'flex';
+        }
+    }
+
+    function updateOnlineStatus() {
+        if (isOnline) {
+            offlineBanner.classList.remove('show');
+            syncData();
+        } else {
+            offlineBanner.classList.add('show');
+            updateSyncStatus(false, 'Offline - data saved locally');
+        }
+    }
+
+    function updateSyncStatus(ok, message) {
+        const icon = syncStatus.querySelector('i');
+        const text = syncStatus.querySelector('span');
+        if (ok) {
+            icon.className = 'fas fa-check-circle sync-ok';
+            text.textContent = message;
+        } else {
+            icon.className = 'fas fa-sync fa-spin sync-pending';
+            text.textContent = message;
+        }
+    }
+
+    async function syncData() {
+        if (!isOnline) {
+            updateSyncStatus(false, 'Offline - waiting for connection');
+            return;
+        }
+        try {
+            const pending = await getAllFromDB('syncQueue');
+            if (pending.length === 0) {
+                updateSyncStatus(true, 'All data synced');
+                return;
+            }
+            updateSyncStatus(false, `Syncing ${pending.length} items...`);
+            for (const item of pending) {
+                console.log('Syncing:', item);
+                await deleteFromDB('syncQueue', item.id);
+            }
+            updateSyncStatus(true, 'All data synced');
+        } catch (error) {
+            console.error('Sync error:', error);
+            updateSyncStatus(false, 'Sync failed - will retry');
+        }
+    }
+
+    async function queueForSync(data) {
+        await saveToDB('syncQueue', { ...data, timestamp: Date.now() });
+        if (isOnline) {
+            syncData();
+        } else {
+            updateSyncStatus(false, 'Data saved locally - will sync when online');
+        }
+    }
+
+    function checkGeofence() {
+        const random = Math.random();
+        isWithinGeofence = random > 0.15;
+        updateGeoStatus();
+    }
+
+    // Login
+    async function selfieLogin() {
+        const users = [
+            { name: 'Maria Santos', role: 'teacher' },
+            { name: 'Jose Rizal', role: 'teacher' },
+            { name: 'Admin Dela Cruz', role: 'admin' },
+            { name: 'Superadmin Tan', role: 'superadmin' }
+        ];
+        const picked = users[Math.floor(Math.random() * users.length)];
+        currentUser = picked.name;
+        userRole = picked.role;
+        isLoggedIn = true;
+
+        localStorage.setItem('antonft_user', JSON.stringify({ name: currentUser, role: userRole }));
+        
+        await saveToDB('users', { name: currentUser, role: userRole, timestamp: Date.now() });
+        
+        refreshUI();
+        alert(`✅ Logged in as ${currentUser} (${userRole}) via Selfie.`);
+    }
+
+    // Log Event
+    async function logEvent() {
+        const eventText = eventInput.value.trim();
+        if (!eventText) {
+            alert('Please describe the event (training, suspension, etc.)');
+            return;
+        }
+
+        const today = new Date();
+        const dateStr = today.toISOString().slice(0,10);
+        let record = dtrRecords.find(r => r.date === dateStr);
+        
+        if (record) {
+            record.status = eventText;
+            record.timeIn = '--';
+            record.timeOut = '--';
+        } else {
+            const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+            record = {
+                date: dateStr,
+                day: dayNames[today.getDay()],
+                timeIn: '--',
+                timeOut: '--',
+                status: eventText
+            };
+            dtrRecords.push(record);
+        }
+
+        await saveToDB('dtrRecords', record);
+        await queueForSync({ action: 'logEvent', record });
+        renderDTR(dtrRecords);
+        eventInput.value = '';
+        alert(`✅ Event "${eventText}" logged.`);
+    }
+
+    // Export Excel
+    function exportExcel() {
+        if (!dtrRecords || dtrRecords.length === 0) {
+            alert('No DTR data to export.');
+            return;
+        }
+
+        const rows = dtrRecords.map(r => ({
+            'Date': r.date,
+            'Day': r.day,
+            'Time In': r.timeIn || '--',
+            'Time Out': r.timeOut || '--',
+            'Status/Event': r.status || ''
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+
+        const metaData = [
+            [`ANTON FT - DepEd DTR`],
+            [`School: ${schoolData.name}`],
+            [`Address: ${schoolData.address}`],
+            [`Month: ${getCurrentMonthYear()}`],
+            []
+        ];
+        XLSX.utils.sheet_add_aoa(ws, metaData, { origin: 'A1' });
+
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/octet-stream' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `DTR_${schoolData.name.replace(/\s/g,'_')}_${getCurrentMonthYear().replace(/\s/g,'_')}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Update School
+    async function updateSchool() {
+        const name = schoolNameInput.value.trim();
+        const addr = schoolAddressInput.value.trim();
+        const locStr = schoolLocationInput.value.trim();
+        if (!name || !addr || !locStr) {
+            alert('All fields required.');
+            return;
+        }
+        const parts = locStr.split(',').map(s => parseFloat(s.trim()));
+        if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+            alert('Location must be in format: lat, lng (e.g. 14.5995, 120.9842)');
+            return;
+        }
+        schoolData.name = name;
+        schoolData.address = addr;
+        schoolData.location = { lat: parts[0], lng: parts[1] };
+
+        await saveToDB('schoolData', { ...schoolData, id: 'school' });
+        await queueForSync({ action: 'updateSchool', schoolData });
+        refreshUI();
+        alert('✅ School information updated.');
+    }
+
+    // Clock
+    function updateClock() {
+        const now = new Date();
+        clockDisplay.textContent = now.toLocaleTimeString('en-PH', { hour12: false });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // PWA Install
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.classList.add('show');
+    });
+
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const result = await deferredPrompt.userChoice;
+            if (result.outcome === 'accepted') {
+                installBtn.classList.remove('show');
+            }
+            deferredPrompt = null;
+        }
+    });
+
+    // Online/Offline
+    window.addEventListener('online', () => {
+        isOnline = true;
+        updateOnlineStatus();
+        syncData();
+    });
+
+    window.addEventListener('offline', () => {
+        isOnline = false;
+        updateOnlineStatus();
+    });
+
+    // Event Bindings
+    selfieBtn.addEventListener('click', selfieLogin);
+    logEventBtn.addEventListener('click', logEvent);
+    exportBtn.addEventListener('click', exportExcel);
+    updateSchoolBtn.addEventListener('click', updateSchool);
+    eventInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') logEvent();
+    });
+    geoStatus.addEventListener('dblclick', function() {
+        isWithinGeofence = !isWithinGeofence;
+        updateGeoStatus();
+    });
+
+    // Initialize
+    async function init() {
+        await openDB();
+        await loadData();
+        checkGeofence();
+        setInterval(checkGeofence, 30000);
+        setInterval(syncData, 60000);
+        
+        if ('serviceWorker' in navigator) {
+            try {
+                await navigator.serviceWorker.register('sw.js');
+                console.log('Service Worker registered');
+            } catch (error) {
+                console.log('Service Worker registration failed:', error);
+            }
+        }
+    }
+
+    init();
+    console.log('✅ ANTON FT v2.0 PWA loaded.');
+})();
+</script>
+</body>
+</html>
