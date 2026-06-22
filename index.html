@@ -81,7 +81,6 @@
         .user-item .user-info { display: flex; flex-direction: column; }
         .user-item .user-name { font-weight: 600; color: #0b3b5c; }
         .user-item .user-email { font-size: 12px; color: #5a7a94; }
-        .user-item .user-password { font-size: 11px; color: #1f6390; font-family: monospace; }
         .user-item .role-select { padding: 6px 12px; border-radius: 20px; border: 1px solid #cbdae7; background: white; }
         .user-item .role-select:focus { outline: 2px solid #0b3b5c; }
         
@@ -114,11 +113,7 @@
         .login-form-container input { width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid #cbdae7; margin-bottom: 12px; font-size: 14px; }
         .login-form-container button { width: 100%; padding: 12px; border-radius: 30px; border: none; background: #0b3b5c; color: white; font-weight: 600; cursor: pointer; }
         .login-form-container button:hover { background: #164b6e; }
-        .login-form-container .demo-credentials { background: #f0f7ff; padding: 12px; border-radius: 12px; margin: 12px 0; font-size: 13px; }
-        .login-form-container .demo-credentials code { display: block; padding: 4px 8px; background: #e8edf4; border-radius: 4px; margin: 4px 0; }
-        .password-generator { display: flex; gap: 8px; margin-top: 4px; }
-        .password-generator button { padding: 4px 12px; background: #e8edf4; color: #0b3b5c; border: 1px solid #cbdae7; border-radius: 20px; cursor: pointer; font-size: 12px; width: auto; }
-        .password-generator input { flex: 1; margin-bottom: 0; }
+        .login-error { color: #b13e3e; text-align: center; margin-top: 12px; font-size: 14px; display: none; }
         
         @media (max-width: 700px) {
             .brand-header { flex-direction: column; align-items: start; gap: 12px; }
@@ -167,15 +162,13 @@
         <h3>👋 Welcome to ANTON FT</h3>
         <p style="text-align:center;color:#5a7a94;margin-bottom:16px;font-size:14px;">Login to track your attendance</p>
         
-        <div class="demo-credentials">
-            <strong>Super Admin Login:</strong>
-            <code>Email: antoninotolentino2022@gmail.com</code>
-            <code>Password: SuperAdmin2026</code>
-        </div>
-        
         <input type="email" id="loginEmail" placeholder="Email address" value="antoninotolentino2022@gmail.com" />
-        <input type="password" id="loginPassword" placeholder="Password" value="SuperAdmin2026" />
+        <input type="password" id="loginPassword" placeholder="Password" />
         <button id="loginBtn">Sign In</button>
+        <div id="loginError" class="login-error">Invalid email or password. Please try again.</div>
+        <p style="text-align:center;color:#888;font-size:12px;margin-top:16px;">
+            For support, contact your school administrator
+        </p>
     </div>
 
     <!-- Main App (hidden until logged in) -->
@@ -295,10 +288,14 @@
 
 // ─── CONFIGURATION ───────────────────────
 // !!! REPLACE WITH YOUR SUPABASE URL AND ANON KEY !!!
-const SUPABASE_URL = 'https://yknmmnrhexnhoferudgh.supabase.co';
+// Get these from: Supabase Dashboard → Settings → API
+const SUPABASE_URL = 'https://yknmmnrhexnhoferudgh.supabase.co/rest/v1/';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlrbm1tbnJoZXhuaG9mZXJ1ZGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwODI0NzYsImV4cCI6MjA5NzY1ODQ3Nn0.X8p_3jggbJl-R33is8pby6rikwVqq8WTme84_GxVjck';
 
 // ─── INITIALIZATION ──────────────────────
+console.log('🚀 ANTON FT v3.0 Starting...');
+console.log('📡 Supabase URL:', SUPABASE_URL);
+
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null;
@@ -338,6 +335,7 @@ const mainApp = $('mainApp');
 const loginBtn = $('loginBtn');
 const loginEmail = $('loginEmail');
 const loginPassword = $('loginPassword');
+const loginError = $('loginError');
 const userList = $('userList');
 const schoolList = $('schoolList');
 const addUserBtn = $('addUserBtn');
@@ -347,11 +345,19 @@ const newUserSchool = $('newUserSchool');
 // ─── AUTH FUNCTIONS ──────────────────────
 async function login(email, password) {
     try {
+        console.log('🔑 Attempting login for:', email);
+        
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password
         });
-        if (error) throw error;
+        
+        if (error) {
+            console.error('❌ Auth error:', error);
+            throw error;
+        }
+        
+        console.log('✅ Auth successful! Getting profile...');
         
         // Get user profile
         const { data: profile, error: profileError } = await supabase
@@ -360,7 +366,12 @@ async function login(email, password) {
             .eq('email', email)
             .single();
         
-        if (profileError) throw profileError;
+        if (profileError) {
+            console.error('❌ Profile error:', profileError);
+            throw profileError;
+        }
+        
+        console.log('✅ Profile loaded:', profile.full_name);
         
         currentUser = profile;
         if (profile.schools) {
@@ -372,12 +383,14 @@ async function login(email, password) {
             school: currentSchool
         }));
         
+        loginError.style.display = 'none';
         showMainApp();
         await loadAllData();
         refreshUI();
         return true;
     } catch (error) {
-        alert('Login failed: ' + error.message);
+        console.error('❌ Login failed:', error);
+        loginError.style.display = 'block';
         return false;
     }
 }
@@ -450,6 +463,8 @@ async function createUser(email, fullName, role, schoolId = null) {
 }
 
 async function loadAllData() {
+    if (!currentUser) return;
+    
     if (currentUser.role === 'super_admin') {
         // Load all schools
         const { data: schools, error: schoolsError } = await supabase
@@ -548,7 +563,7 @@ function renderUsers() {
             <div class="user-info">
                 <span class="user-name">${user.full_name}</span>
                 <span class="user-email">${user.email}</span>
-                <span class="user-password">${user.role === 'super_admin' ? '🔑 Super Admin' : user.schools?.name || 'No school'}</span>
+                <span style="font-size:11px;color:#1f6390;">${user.role === 'super_admin' ? '🔑 Super Admin' : user.schools?.name || 'No school'}</span>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <select class="role-select" data-user-id="${user.id}" onchange="updateUserRole('${user.id}', this.value)">
@@ -978,6 +993,8 @@ addSchoolBtn.addEventListener('click', addSchool);
 
 // ─── INIT ───────────────────────────────
 async function init() {
+    console.log('🔧 Initializing ANTON FT...');
+    
     // Check for existing session
     const session = localStorage.getItem('antonft_session');
     if (session) {
@@ -1026,16 +1043,22 @@ async function init() {
     if ('serviceWorker' in navigator) {
         try {
             await navigator.serviceWorker.register('sw.js');
-            console.log('Service Worker registered');
+            console.log('✅ Service Worker registered');
         } catch (error) {
             console.log('Service Worker registration failed:', error);
         }
     }
 }
 
+// Make functions global for inline onclick handlers
+window.selectSchool = selectSchool;
+window.deleteSchool = deleteSchool;
+window.updateUserRole = updateUserRole;
+window.resetUserPassword = resetUserPassword;
+window.deleteUser = deleteUser;
+
 init();
-console.log('✅ ANTON FT v3.0 with Supabase loaded!');
-console.log('🔑 Super Admin: antoninotolentino2022@gmail.com / SuperAdmin2026');
+console.log('✅ ANTON FT v3.0 loaded!');
 </script>
 </body>
 </html>
